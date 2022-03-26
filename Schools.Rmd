@@ -4,29 +4,155 @@ output: html_document
 date: '2022-03-09'
 ---
 
+# Data 
 ```{r}
-setwd("/Users/romane/Université/Git/Schools/schools/")
+Ndoses <-
+6
+Nplates <-
+3
+y <-
+structure(c(15, 16, 16, 27, 33, 20, 21, 18, 26, 41, 38, 27, 29, 
+21, 33, 60, 41, 42), .Dim = c(6, 3))
+x <-
+c(0, 10, 33, 100, 333, 1000)
+
 ```
 
+# Initialisation 
+
 ```{r}
-gibbsSchools <- function(nchain){
+alpha <- 0
+beta <- 0
+gamma <- 0
+tau <- 0.1
+lambda <-
+structure(c(0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0,
+            0, 0, 0), .Dim = c(6, 3))
+
+```
+
+# Chaîne de Markov 
+
+```{r}
+gibbsSalm <- function(nchain, prop_sd){
   
-  chain <- matrix(NA, nchain + 1, ???)
+  #Calcul de mu_ij
+  mu <- exp(alpha + beta*log(x + 10) + gamma*x + lambda)
   
-  for(i in 1:nchain){
+  chain <- matrix(NA, nchain+1, 4 + 6*3)
+  chain[1,] <- c(alpha, beta, gamma, tau, lambda)
+  
+  
+  for(iter in 1:nchain){
     
+    #Mise à jour de alpha
     
+    prop_a <- rnorm(1, alpha, prop_sd[1])
+    prop_mu <- exp(prop_a + beta*log(x + 10) + gamma*x + lambda)
     
+    if (all(is.finite(prop_mu))){
+      top <- (-prop_a**2 / (2*10**6)) + sum(-prop_mu + y*log(prop_mu))
+      bottom <- (-alpha**2 / (2*10**6)) + sum(-mu + y*log(mu))
+      
+      acc_prob <- exp(top - bottom)
+      
+      if (!is.finite(acc_prob))
+        browser()
+      
+      if (runif(1) < acc_prob){
+        alpha <- prop_a
+        mu <- prop_mu
+      }
+    }
     
+    #Mise à jour de beta
+    
+    prop_b <- rnorm(1, beta, prop_sd[1])
+    prop_mu <- exp(alpha + prop_b*log(x + 10) + gamma*x + lambda)
+    
+    if (all(is.finite(prop_mu))){
+      top <- (-prop_b**2 / (2*10**6)) + sum(-prop_mu + y*log(prop_mu))
+      bottom <- (-beta**2 / (2*10**6)) + sum(-mu + y*log(mu))
+      
+      acc_prob <- exp(top - bottom)
+      if (!is.finite(acc_prob))
+        browser()
+      
+      if (runif(1) < acc_prob){
+        beta <- prop_b
+        mu <- prop_mu
+      }
+    }
+    #Mise à jour de gamma
+    
+    prop_g <- rnorm(1, gamma, prop_sd[1])
+    prop_mu <- exp(alpha + beta*log(x + 10) + prop_g*x + lambda)
+    
+    if (all(is.finite(prop_mu))){
+      
+      top <- (-prop_g**2 / (2*10**6)) + sum(-prop_mu + y*log(prop_mu))
+      bottom <- (-gamma**2 / (2*10**6)) + sum(-mu + y*log(mu))
+      
+      acc_prob <- exp(top - bottom)
+      if (!is.finite(acc_prob))
+        browser()
+      
+      if (runif(1) < acc_prob){
+        gamma <- prop_g
+        mu <- prop_mu
+      }
+    }
+    
+    #Mise à jour de tau
+    
+    tau <- rgamma(n=1, shape=0.001 + (6*3)/2, rate = 0.001 + sum(lambda**2)/2)
+    
+    #Mise à jour des lambda
+    
+    for(i in 1:6){
+      for(j in 1:3){
+        
+        prop_l <- rnorm(1, lambda[i,j], prop_sd[2])
+        prop_mu <- exp(alpha + beta*log(x[i] + 10) + gamma*x[i] + lambda[i,j])
+        
+        if (all(is.finite(prop_mu))){
+          
+          top <- (-tau/2) * prop_l**2 - prop_mu + y[i,j]*log(prop_mu)
+          bottom <- (-tau/2) * lambda[i,j]**2 - mu[i,j] + y[i,j]*log(mu[i,j])
+          
+          acc_prob <- exp(top - bottom)
+          if (!is.finite(acc_prob))
+            browser()
+          if (runif(1) < acc_prob){
+            lambda[i,j] <- prop_l
+            mu[i,j] <- prop_mu
+          }
+        }
+      }
+    }
+    
+    #Mise à jour de la chaîne
+    chain[iter+1,] <- c(alpha, beta, gamma, tau, lambda)
   }
   
-  
-  
-  
+  colnames(chain) <- c("alpha","beta", "gamma", "tau", "lambda11","lambda21",
+                       "lambda31","lambda41","lambda51","lambda61","lambda12","lambda22",
+                       "lambda32","lambda42","lambda52","lambda62","lambda13","lambda23",
+                       "lambda33","lambda43","lambda53","lambda63")
+  return(chain)
 }
 ```
 
 
+```{r}
+chain <- gibbsSalm(10000, prop_sd = c(1,1))
+
+plot(mcmc(chain))
+```
 
 
 
