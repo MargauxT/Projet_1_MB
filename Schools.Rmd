@@ -149,11 +149,17 @@ gibbsSalm <- function(nchain, prop_sd){
 
 
 ```{r}
-chain <- gibbsSalm(10000, prop_sd = c(1,1))
+set.seed(123)
+chain <- gibbsSalm(10000, prop_sd = c(0.2,0.01))
 
 plot(mcmc(chain))
 ```
 
+Estimation finale des paramètres :
+
+```{r}
+summary(mcmc(chain))
+```
 
 
 
